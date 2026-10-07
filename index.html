@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>路书 · 本地行程规划</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" type="image/x-icon" href="favicon.ico">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<link rel="stylesheet" href="css/app.css">
+<script src="vendor/sortable.min.js"></script>
+<script src="vendor/idb-keyval.min.js"></script>
+<script src="vendor/qrcode.min.js"></script>
+</head>
+<body>
+<header class="topbar">
+  <div class="brand" id="brand">🗺 路书</div>
+  <nav class="tabs" id="tabs">
+    <a href="#/home" data-route="home">首页</a>
+    <a href="#/picker" data-route="picker">地图选点</a>
+    <a href="#/library" data-route="library">收藏地点</a>
+    <a href="#/planner" data-route="planner">规划路线</a>
+    <a href="#/generate" data-route="generate">生成路线</a>
+    <a href="#/mybooks" data-route="mybooks">我的路书</a>
+    <a href="#/mine" data-route="mine">系统设置</a>
+  </nav>
+  <div class="top-right">
+    <span id="bookChip" class="book-chip" hidden title="当前路书，点击切换"></span>
+    <span id="saveIndicator" class="save-indicator" hidden></span>
+    <div id="userChip" class="user-chip"></div>
+  </div>
+</header>
+<div id="permBanner" class="banner" hidden style="margin: 12px 24px 0;"></div>
+<main id="page"></main>
+<div id="modalRoot"></div>
+<div id="toastRoot" class="toast-root"></div>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

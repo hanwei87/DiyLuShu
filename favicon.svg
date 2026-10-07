@@ -1,0 +1,122 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <!-- 背景渐变：天际蔚蓝到深邃宝蓝 -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0ea5e9" />
+      <stop offset="45%" stop-color="#2563eb" />
+      <stop offset="100%" stop-color="#1d4ed8" />
+    </linearGradient>
+
+    <!-- 地标大头针渐变：日落晨光珊瑚橙 -->
+    <linearGradient id="pinGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ff7849" />
+      <stop offset="100%" stop-color="#ea580c" />
+    </linearGradient>
+
+    <!-- 真实手账折纸立体光影 -->
+    <!-- 左折页：受光面 -->
+    <linearGradient id="mapLeft" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="100%" stop-color="#f1f5f9" />
+    </linearGradient>
+    <!-- 中折页：微背光面 -->
+    <linearGradient id="mapMid" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#e2e8f0" />
+      <stop offset="100%" stop-color="#cbd5e1" />
+    </linearGradient>
+    <!-- 右折页：受光反弹面 -->
+    <linearGradient id="mapRight" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#f8fafc" />
+      <stop offset="100%" stop-color="#e2e8f0" />
+    </linearGradient>
+
+    <!-- 道路渐变与立体感 -->
+    <linearGradient id="roadGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#1e293b" />
+      <stop offset="100%" stop-color="#334155" />
+    </linearGradient>
+
+    <!-- 柔和阴影 -->
+    <filter id="dropShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="5" stdDeviation="4.5" flood-color="#0f172a" flood-opacity="0.32" />
+    </filter>
+    <filter id="pinGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="3.5" stdDeviation="3" flood-color="#c2410c" flood-opacity="0.45" />
+    </filter>
+  </defs>
+
+  <!-- 1. Apple Squircle 圆角底板 -->
+  <rect x="4" y="4" width="120" height="120" rx="27" fill="url(#bgGrad)" />
+  <rect x="4" y="4" width="120" height="120" rx="27" fill="none" stroke="rgba(255, 255, 255, 0.35)" stroke-width="1.2" />
+
+  <!-- 2. 旅行经纬网 / 手账网格微纹理 -->
+  <g opacity="0.13" stroke="#ffffff" stroke-width="1">
+    <line x1="4" y1="36" x2="124" y2="36" />
+    <line x1="4" y1="64" x2="124" y2="64" />
+    <line x1="4" y1="92" x2="124" y2="92" />
+    <line x1="36" y1="4" x2="36" y2="124" />
+    <line x1="64" y1="4" x2="64" y2="124" />
+    <line x1="92" y1="4" x2="92" y2="124" />
+  </g>
+
+  <!-- 3. 三折式路书地图（立体折痕风琴页） -->
+  <g filter="url(#dropShadow)">
+    <!-- 左折页 -->
+    <polygon points="22,42 50,32 50,96 22,106" fill="url(#mapLeft)" />
+    <!-- 中折页 -->
+    <polygon points="50,32 78,42 78,106 50,96" fill="url(#mapMid)" />
+    <!-- 右折页 -->
+    <polygon points="78,42 106,32 106,96 78,106" fill="url(#mapRight)" />
+
+    <!-- 外轮廓与高光边 -->
+    <polygon points="22,42 50,32 78,42 106,32 106,96 78,106 50,96 22,106" 
+             fill="none" stroke="rgba(255,255,255,0.85)" stroke-width="1" stroke-linejoin="round" />
+    <!-- 折痕分界阴影 -->
+    <line x1="50" y1="32" x2="50" y2="96" stroke="rgba(0,0,0,0.12)" stroke-width="1.2" />
+    <line x1="78" y1="42" x2="78" y2="106" stroke="rgba(0,0,0,0.1)" stroke-width="1.2" />
+
+    <!-- 地图上的等高线与打卡路线示意 -->
+    <path d="M 28 58 Q 38 52 44 62" fill="none" stroke="#94a3b8" stroke-width="1.2" stroke-linecap="round" opacity="0.6" />
+    <path d="M 84 84 Q 92 78 100 86" fill="none" stroke="#94a3b8" stroke-width="1.2" stroke-linecap="round" opacity="0.6" />
+    <!-- 罗盘四角微标印章 -->
+    <g transform="translate(94, 52) scale(0.6)" opacity="0.45">
+      <circle cx="0" cy="0" r="8" fill="none" stroke="#64748b" stroke-width="1" stroke-dasharray="2 2" />
+      <polygon points="0,-7 2,-2 7,0 2,2 0,7 -2,2 -7,0 -2,-2" fill="#64748b" />
+    </g>
+  </g>
+
+  <!-- 4. 蜿蜒自驾公路（从左下起伏延伸至右侧终点） -->
+  <g filter="url(#dropShadow)">
+    <!-- 柏油公路基底 -->
+    <path d="M 20 96 C 36 96, 42 72, 60 72 C 75 72, 77 52, 90 52" 
+          fill="none" stroke="#0f172a" stroke-width="13" stroke-linecap="round" />
+    <!-- 公路路面 -->
+    <path d="M 20 96 C 36 96, 42 72, 60 72 C 75 72, 77 52, 90 52" 
+          fill="none" stroke="url(#roadGrad)" stroke-width="10.5" stroke-linecap="round" />
+    <!-- 道路中央黄金/纯白虚线引导带 -->
+    <path d="M 22 96 C 37 96, 42 72, 60 72 C 75 72, 77 52, 89 52" 
+          fill="none" stroke="#ffffff" stroke-width="2.2" stroke-dasharray="4.2 3.5" stroke-linecap="round" />
+  </g>
+
+  <!-- 5. 目的地辐射光环与定位底座 -->
+  <ellipse cx="90" cy="52" rx="9" ry="5.5" fill="#ea580c" opacity="0.28" />
+  <circle cx="90" cy="52" r="3.5" fill="#ea580c" opacity="0.5" />
+
+  <!-- 6. 标志性大头针 (Iconic Waypoint Pin) -->
+  <g filter="url(#pinGlow)">
+    <!-- 饱满水滴针头 -->
+    <path d="M 90 20 C 81.7 20, 75 26.7, 75 35 C 75 44.8, 86.5 56.5, 90 60 C 93.5 56.5, 105 44.8, 105 35 C 105 26.7, 98.3 20, 90 20 Z" 
+          fill="url(#pinGrad)" />
+    <!-- 高光内弧线 -->
+    <path d="M 90 21.5 C 83 21.5, 77 27.2, 77 35 C 77 42.5, 86 53, 90 56.5 C 94 53, 103 42.5, 103 35 C 103 27.2, 97 21.5, 90 21.5 Z" 
+          fill="none" stroke="rgba(255,255,255,0.42)" stroke-width="1.2" />
+    <!-- 中心内嵌白芯小圆 -->
+    <circle cx="90" cy="35" r="4.8" fill="#ffffff" />
+  </g>
+
+  <!-- 7. 旅程探索之星（左上方晨星） -->
+  <g transform="translate(28, 22)">
+    <path d="M 0 -8 Q 0 0 8 0 Q 0 0 0 8 Q 0 0 -8 0 Q 0 0 0 -8 Z" fill="#ffffff" opacity="0.95" />
+    <circle cx="0" cy="0" r="1.6" fill="#fbbf24" />
+  </g>
+</svg>
