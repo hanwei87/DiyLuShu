@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>路书 · 测试</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="../css/app.css">
+<script src="../vendor/sortable.min.js"></script>
+<script src="../vendor/idb-keyval.min.js"></script>
+<script src="../vendor/qrcode.min.js"></script>
+<script>window.__TEST_HARNESS__ = true;</script>
+</head>
+<body>
+<header class="topbar">
+  <div class="brand" id="brand">🗺 路书</div>
+  <nav class="tabs" id="tabs">
+    <a href="#/home" data-route="home">首页</a>
+    <a href="#/picker" data-route="picker">地图选点</a>
+    <a href="#/library" data-route="library">收藏地点</a>
+    <a href="#/planner" data-route="planner">规划路线</a>
+    <a href="#/generate" data-route="generate">生成路线</a>
+    <a href="#/mybooks" data-route="mybooks">我的路书</a>
+    <a href="#/mine" data-route="mine">系统设置</a>
+  </nav>
+  <div class="top-right">
+    <span id="bookChip" class="book-chip" hidden title="当前路书，点击切换"></span>
+    <span id="saveIndicator" class="save-indicator" hidden></span>
+  </div>
+</header>
+<main id="page"></main>
+<span id="saveIndicator" hidden></span>
+<div id="permBanner" hidden></div>
+<div id="modalRoot"></div>
+<div id="toastRoot" class="toast-root"></div>
+<div id="testReport"></div>
+<script type="module">
+  window.__stage = 'harness';
+  import { runAll, renderReport } from './harness.mjs';
+  const cases = ['utils', 'auth', 'm0', 'm1', 'm2', 'm3', 'm4', 'm5', 'm6', 'm7', 'm8', 'm9', 'm10', 'm11', 'm12', 'm13', 'm14', 'm15', 'm16', 'm17', 'm18', 'm19'];
+  const params = new URLSearchParams(location.search);
+  const only = params.get('only') || undefined;
+
+  async function importAll() {
+    for (const c of cases) {
+      window.__stage = 'import ' + c;
+      await import(`./cases/${c}.test.mjs`);
+    }
+  }
+  function report(r2) {
+    window.__testResults = r2;
+    renderReport(document.getElementById('testReport'), r2);
+  }
+
+  // 外部驱动模式（自动化环境用）：?norun=1 只挂载harness，由驱动方导入并运行
+  if (!params.has('norun')) {
+    await importAll();
+    window.__stage = 'running';
+    const results = await runAll(only);
+    window.__stage = 'done';
+    report(results);
+  } else {
+    window.__stage = 'external';
+  }
+  window.runOneSuite = async (filter) => { const r = await runAll(filter); renderReport(document.getElementById('testReport'), r); return r; };
+  window.runAllTests = async () => {
+    const r2 = await runAll(only);
+    report(r2);
+    return r2;
+  };
+  window.__importAll = importAll;
+  window.__cases = cases;
+</script>
+</body>
+</html>
