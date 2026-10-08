@@ -265,14 +265,23 @@ function renderCalloutToolbar() {
   const box = el.querySelector('[data-calloutbar]');
   const cf = calloutFilter();
   box.innerHTML = `
-    <div class="lib-toolbar">
-      ${[['__all', '全部'], ...state.library.categories.map(c => [c.id, c.name])].map(([id, name]) =>
-        `<button class="btn sm ${cf.categoryId === id ? 'primary' : ''}" data-libcat="${id}">${escapeHtml(name)}</button>`).join('')}
-      <input type="search" data-libkw placeholder="搜索信息库…" value="${escapeHtml(cf.kw)}" style="width:140px;">
-    </div>
-    <div class="lib-toolbar" style="margin-top:4px;">
-      <span style="color:var(--sub);font-size:12px;">标签:</span>
-      ${state.library.tags.map(t => `<span class="chip ${cf.tagIds.includes(t.id) ? 'active' : ''}" data-libtag="${t.id}">#${escapeHtml(t.name)}</span>`).join('')}
+    <div class="callout-toolbar">
+      <div class="callout-header">
+        <div class="callout-cat-group">
+          ${[['__all', '全部'], ...state.library.categories.map(c => [c.id, c.name])].map(([id, name]) =>
+            `<button class="btn sm ${cf.categoryId === id ? 'primary' : ''}" data-libcat="${id}">${escapeHtml(name)}</button>`).join('')}
+        </div>
+        <div class="callout-search-wrap">
+          <input type="search" class="callout-search" data-libkw placeholder="搜索信息库…" value="${escapeHtml(cf.kw)}">
+        </div>
+      </div>
+      ${state.library.tags.length ? `
+      <div class="callout-tag-group">
+        <span class="callout-tag-label">标签：</span>
+        <div class="callout-tag-list">
+          ${state.library.tags.map(t => `<span class="chip ${cf.tagIds.includes(t.id) ? 'active' : ''}" data-libtag="${t.id}">#${escapeHtml(t.name)}</span>`).join('')}
+        </div>
+      </div>` : ''}
     </div>`;
 }
 
