@@ -657,6 +657,83 @@ class LushuHandler(http.server.SimpleHTTPRequestHandler):
             return forwarded.split(',')[0].strip()
         return self.client_address[0] if self.client_address else '127.0.0.1'
 
+    def _get_ip_location(self, ip: str) -> dict:
+        is_private = not ip or ip.startswith((
+            '127.', '10.', '192.168.',
+            '172.16.', '172.17.', '172.18.', '172.19.',
+            '172.20.', '172.21.', '172.22.', '172.23.',
+            '172.24.', '172.25.', '172.26.', '172.27.',
+            '172.28.', '172.29.', '172.30.', '172.31.',
+            '::1', 'fe80:'
+        ))
+        target_ip = '' if is_private else ip
+
+        # 1. 尝试从数据库读取已配置的 Web 服务 Key (如 weatherKey)
+        key = None
+        try:
+            with get_db() as conn:
+                row = conn.execute("SELECT value FROM settings WHERE key='weatherKey'").fetchone()
+                if row and row[0]:
+                    key = row[0].strip()
+        except Exception:
+            pass
+
+        # 2. 若有高德 Web 服务 Key，调用高德官方 IP 定位接口
+        if key:
+            try:
+                import urllib.request
+                url = f"https://restapi.amap.com/v3/ip?key={key}"
+                if target_ip:
+                    url += f"&ip={target_ip}"
+                req = urllib.request.Request(url, headers={'User-Agent': 'LuShu/1.0'})
+                with urllib.request.urlopen(req, timeout=3) as resp:
+                    data = json.loads(resp.read().decode('utf-8'))
+                    if data.get('status') == '1' and data.get('city') and isinstance(data.get('city'), str):
+                        city = data.get('city')
+                        province = data.get('province')
+                        rect = data.get('rectangle')
+                        center = None
+                        if rect and isinstance(rect, str) and ';' in rect:
+                            parts = [p.split(',') for p in rect.split(';')]
+                            if len(parts) == 2:
+                                p1, p2 = parts[0], parts[1]
+                                center = [
+                                    round((float(p1[0]) + float(p2[0])) / 2, 6),
+                                    round((float(p1[1]) + float(p2[1])) / 2, 6)
+                                ]
+                        return {
+                            'ok': True, 'ip': ip, 'city': city, 'province': province,
+                            'center': center, 'source': 'amap'
+                        }
+            except Exception:
+                pass
+
+        # 3. 备用公网 IP 接口（免 Key）
+        try:
+            import urllib.request
+            q_url = "https://whois.pconline.com.cn/ipJson.jsp?json=true"
+            if target_ip:
+                q_url += f"&ip={target_ip}"
+            req = urllib.request.Request(q_url, headers={'User-Agent': 'Mozilla/5.0'})
+            with urllib.request.urlopen(req, timeout=3) as resp:
+                raw = resp.read()
+                try:
+                    text = raw.decode('gbk')
+                except Exception:
+                    text = raw.decode('utf-8', errors='ignore')
+                data = json.loads(text.strip())
+                city = (data.get('city') or '').strip()
+                pro = (data.get('pro') or '').strip()
+                if city or pro:
+                    return {
+                        'ok': True, 'ip': ip, 'city': city or pro, 'province': pro,
+                        'center': None, 'source': 'pconline'
+                    }
+        except Exception:
+            pass
+
+        return {'ok': False, 'ip': ip}
+
     def _json_response(self, data, status=200):
         body = json.dumps(data, ensure_ascii=False).encode('utf-8')
         self.send_response(status)
@@ -694,9 +771,14 @@ class LushuHandler(http.server.SimpleHTTPRequestHandler):
     def _handle_api(self, method):
         path = self.path.split('?')[0]
         try:
-            # 1. 健康检查
+            # 1. 健康检查与网络定位
             if method == 'GET' and (path == '/api/health' or path == '/health'):
                 self._json_response({'status': 'ok', 'db': 'ok', 'version': '2.1.0'})
+                return
+
+            if method == 'GET' and path == '/api/locate':
+                ip = self._client_ip()
+                self._json_response(self._get_ip_location(ip))
                 return
 
             # 2. 用户注册与登录公开接口（带频控防刷与防暴力破解）

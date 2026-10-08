@@ -100,6 +100,9 @@ def run_tests():
             print("服务启动失败，终止测试")
             return 1
 
+        st, loc_data, _ = request('GET', '/api/locate')
+        check("免登录网络定位接口 /api/locate 可用", st == 200 and 'ip' in loc_data)
+
         # 2. 检查静态文件托管与安全加固
         st, data, ctype, headers = request_with_headers('GET', '/index.html')
         check("托管 index.html 状态码 200", st == 200)

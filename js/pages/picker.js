@@ -256,7 +256,7 @@ export async function render(el) {
   }
 
   if (mapRef) { try { mapRef.destroy(); } catch { /* 忽略 */ } }
-  const defaultCenter = normPos(state.library?.items?.slice(-1)[0]?.location) || [104.065, 30.657];
+  const defaultCenter = normPos(state.library?.items?.slice(-1)[0]?.location) || [116.405, 39.904];
   mapRef = new AMap.Map(el.querySelector('#mapPicker'), {
     zoom: 12,
     center: defaultCenter,

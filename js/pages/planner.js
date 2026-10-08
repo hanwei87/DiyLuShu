@@ -323,10 +323,41 @@ async function initMap() {
   try {
     const AMap = await loadAMap();
     if (mapRef) { try { mapRef.destroy(); } catch { /* 忽略 */ } }
-    const defaultCenter = normPos(state.library?.items?.slice(-1)[0]?.location) || [104.065, 30.657];
-    mapRef = new AMap.Map(panel.querySelector('#mapPlanner'), { zoom: 11, center: defaultCenter });
+
+    // 优先：当前路书激活天或全行程的已有地点坐标
+    const b = book();
+    const activeDay = b?.days?.find(d => d.id === el._activeDayId) || b?.days?.[0];
+    let bookPos = null;
+    if (activeDay) {
+      for (const id of activeDay.stopItemIds) {
+        const it = findItem(id);
+        if (it?.location) { bookPos = normPos(it.location); if (bookPos) break; }
+      }
+      if (!bookPos && activeDay.stayItemId) {
+        const stay = findItem(activeDay.stayItemId);
+        if (stay?.location) bookPos = normPos(stay.location);
+      }
+    }
+    // 若当前激活天无地点，遍历路书任意一天的首个地点
+    if (!bookPos && b?.days) {
+      for (const d of b.days) {
+        for (const id of d.stopItemIds) {
+          const it = findItem(id);
+          if (it?.location) { bookPos = normPos(it.location); if (bookPos) break; }
+        }
+        if (bookPos) break;
+      }
+    }
+
+    const defaultCenter = bookPos || normPos(state.library?.items?.slice(-1)[0]?.location) || [116.405, 39.904];
+    mapRef = new AMap.Map(panel.querySelector('#mapPlanner'), { zoom: bookPos ? 12 : 11, center: defaultCenter });
     markerRef = null;
-    centerOnCurrentLocation(mapRef, 11); // 默认显示当前位置
+
+    if (!bookPos) {
+      centerOnCurrentLocation(mapRef, 11); // 仅在没有路书地点时尝试定位当前位置
+    }
+
+    redrawRoute();
   } catch (err) {
     panel.querySelector('#mapPlanner').innerHTML =
       `<div class="banner" style="margin:12px;display:flex;align-items:center;justify-content:space-between;gap:8px;">
@@ -619,6 +650,19 @@ export async function render(container) {
         el._activeDayId = dayCard.dataset.day;
         renderLeft();
         redrawRoute();
+        const curDay = b.days.find(d => d.id === el._activeDayId);
+        if (curDay && mapRef) {
+          let dayLoc = null;
+          for (const id of curDay.stopItemIds) {
+            const it = findItem(id);
+            if (it?.location) { dayLoc = normPos(it.location); if (dayLoc) break; }
+          }
+          if (!dayLoc && curDay.stayItemId) {
+            const stay = findItem(curDay.stayItemId);
+            if (stay?.location) dayLoc = normPos(stay.location);
+          }
+          if (dayLoc) mapRef.panTo(dayLoc);
+        }
       }
     });
     root.addEventListener('input', e => {

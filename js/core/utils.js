@@ -86,11 +86,19 @@ export function strToLoc(s) {
   const [lng, lat] = String(s).split(',').map(Number);
   return Number.isFinite(lng) && Number.isFinite(lat) ? [lng, lat] : null;
 }
-/** 归一化各种坐标形态（数组 / {lng,lat} / LngLat实例）为 [lng,lat] */
+/** 归一化各种坐标形态（"lng,lat"字符串 / 数组 / {lng,lat} / LngLat实例）为 [lng,lat] */
 export function normPos(p) {
   if (!p) return null;
-  if (Array.isArray(p)) return [Number(p[0]), Number(p[1])];
-  if (typeof p === 'object' && Number.isFinite(Number(p.lng))) return [Number(p.lng), Number(p.lat)];
+  if (typeof p === 'string') return strToLoc(p);
+  if (Array.isArray(p)) {
+    const lng = Number(p[0]), lat = Number(p[1]);
+    return Number.isFinite(lng) && Number.isFinite(lat) ? [lng, lat] : null;
+  }
+  if (typeof p === 'object') {
+    const lng = Number(typeof p.getLng === 'function' ? p.getLng() : p.lng);
+    const lat = Number(typeof p.getLat === 'function' ? p.getLat() : p.lat);
+    return Number.isFinite(lng) && Number.isFinite(lat) ? [lng, lat] : null;
+  }
   return null;
 }
 

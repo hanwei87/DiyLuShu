@@ -42,7 +42,7 @@ export async function loadAMap({ forceMock = false } = {}) {
 /** 测试辅助：清除缓存 */
 export function resetAmapCache() { cached = null; }
 
-/** 地图默认定位到当前位置（高精度GPS优先，HTTP或无权限时自动降级到IP城市定位与用户收藏位置）。
+/** 地图默认定位到当前位置（高精度GPS优先，HTTP或无权限时自动降级到服务端IP/高德城市定位与用户收藏位置）。
  *  waitMs>0 时最多等待该毫秒数（供"先定位、画线后fitView"的时序用） */
 export async function centerOnCurrentLocation(map, zoom = 12, waitMs = 0) {
   if (!map) return;
@@ -53,35 +53,65 @@ export async function centerOnCurrentLocation(map, zoom = 12, waitMs = 0) {
       const finish = () => { if (!done) { done = true; resolve(); } };
       const timer = waitMs > 0 ? setTimeout(finish, waitMs) : null;
 
-      // 降级策略 1：使用 AMap.CitySearch 进行 IP 城市级别定位（不受非 HTTPS 限制）
-      const fallbackToIp = () => {
+      // 降级 1：调用后端 /api/locate 服务端网络定位（免浏览器权限、不受非 HTTPS 限制）
+      const fallbackToBackendLocate = async () => {
         try {
-          if (AMap.CitySearch) {
-            const cs = new AMap.CitySearch();
-            cs.getLocalCity((status, result) => {
-              if (status === 'complete' && result?.info === 'OK') {
-                if (result.bounds && typeof result.bounds.getCenter === 'function') {
-                  const c = result.bounds.getCenter();
-                  map.setZoomAndCenter(zoom, [c.getLng(), c.getLat()]);
-                  if (timer) clearTimeout(timer);
-                  finish();
-                  return;
-                } else if (result.rectangle) {
-                  const parts = String(result.rectangle).split(';').map(p => p.split(',').map(Number));
-                  if (parts.length === 2 && !isNaN(parts[0][0]) && !isNaN(parts[1][0])) {
-                    const center = [(parts[0][0] + parts[1][0]) / 2, (parts[0][1] + parts[1][1]) / 2];
-                    map.setZoomAndCenter(zoom, center);
-                    if (timer) clearTimeout(timer);
-                    finish();
-                    return;
+          const res = await fetch('/api/locate');
+          if (res.ok) {
+            const data = await res.json();
+            if (data?.ok) {
+              if (data.center && Array.isArray(data.center)) {
+                map.setZoomAndCenter(zoom, data.center);
+                if (timer) clearTimeout(timer);
+                finish();
+                return;
+              } else if (data.city && typeof map.setCity === 'function') {
+                map.setCity(data.city);
+                if (timer) clearTimeout(timer);
+                finish();
+                return;
+              }
+            }
+          }
+        } catch { /* 忽略 */ }
+        fallbackToCitySearch();
+      };
+
+      // 降级 2：使用 AMap.CitySearch 进行高德前端城市检索
+      const fallbackToCitySearch = () => {
+        try {
+          if (typeof AMap.plugin === 'function') {
+            AMap.plugin('AMap.CitySearch', () => {
+              if (AMap.CitySearch) {
+                const cs = new AMap.CitySearch();
+                cs.getLocalCity((status, result) => {
+                  if (status === 'complete' && result?.info === 'OK') {
+                    if (result.bounds && typeof result.bounds.getCenter === 'function') {
+                      const c = result.bounds.getCenter();
+                      map.setZoomAndCenter(zoom, [c.getLng(), c.getLat()]);
+                      if (timer) clearTimeout(timer);
+                      finish();
+                      return;
+                    } else if (result.rectangle) {
+                      const parts = String(result.rectangle).split(';').map(p => p.split(',').map(Number));
+                      if (parts.length === 2 && !isNaN(parts[0][0]) && !isNaN(parts[1][0])) {
+                        const center = [(parts[0][0] + parts[1][0]) / 2, (parts[0][1] + parts[1][1]) / 2];
+                        map.setZoomAndCenter(zoom, center);
+                        if (timer) clearTimeout(timer);
+                        finish();
+                        return;
+                      }
+                    }
+                    if (result.city && typeof map.setCity === 'function') {
+                      map.setCity(result.city);
+                      if (timer) clearTimeout(timer);
+                      finish();
+                      return;
+                    }
                   }
-                }
-                if (result.city && typeof map.setCity === 'function') {
-                  map.setCity(result.city);
-                  if (timer) clearTimeout(timer);
-                  finish();
-                  return;
-                }
+                  fallbackToSavedLocation();
+                });
+                return;
               }
               fallbackToSavedLocation();
             });
@@ -91,7 +121,7 @@ export async function centerOnCurrentLocation(map, zoom = 12, waitMs = 0) {
         fallbackToSavedLocation();
       };
 
-      // 降级策略 2：若完全离线或无 IP 信息，使用用户已有收藏地点或路书中的位置
+      // 降级 3：若完全离线或无 IP 信息，使用用户已有收藏地点或路书中的位置
       const fallbackToSavedLocation = () => {
         try {
           const lastItem = state.library?.items?.slice(-1)[0];
@@ -106,10 +136,11 @@ export async function centerOnCurrentLocation(map, zoom = 12, waitMs = 0) {
         finish();
       };
 
+      // 优先：高精度 GPS / 浏览器 Geolocation (localhost / HTTPS / 允许权限)
       try {
         const geo = new AMap.Geolocation({
           enableHighAccuracy: true,
-          timeout: 4000,
+          timeout: 2500,
           getCityWhenFail: true,
           needAddress: true,
         });
@@ -130,11 +161,11 @@ export async function centerOnCurrentLocation(map, zoom = 12, waitMs = 0) {
             if (timer) clearTimeout(timer);
             finish();
           } else {
-            fallbackToIp();
+            fallbackToBackendLocate();
           }
         });
       } catch {
-        fallbackToIp();
+        fallbackToBackendLocate();
       }
     });
   } catch { /* 定位失败保持原中心 */ }

@@ -7,7 +7,7 @@ import { geocodeName, driveSegments, dayColor } from '../core/routeDraw.js';
 import { formModal } from '../core/modal.js';
 import { openModal } from '../core/modal.js';
 import { toast } from '../core/toast.js';
-import { escapeHtml, fmtDate, strToLoc, locToStr, fmtDistance, fmtDuration, cityOfAddress } from '../core/utils.js';
+import { escapeHtml, fmtDate, strToLoc, locToStr, normPos, fmtDistance, fmtDuration, cityOfAddress } from '../core/utils.js';
 
 let el = null;
 let mapRef = null;
@@ -286,7 +286,7 @@ async function computeAndDraw(book, runId = ++genRun) {
     const panel = el.querySelector('.gen-map');
     // 每次进入页面重建地图（容器是新的，旧实例已随旧DOM脱离）
     if (mapRef) { try { mapRef.destroy(); } catch { /* 忽略 */ } }
-    const defaultCenter = normPos(state.library?.items?.slice(-1)[0]?.location) || [104.065, 30.65];
+    const defaultCenter = normPos(state.library?.items?.slice(-1)[0]?.location) || [116.405, 39.904];
     mapRef = new AMap.Map(panel.querySelector('#mapGen'), { zoom: 10, center: defaultCenter });
     // 先尝试定位当前位置（最多等1.5s），随后的画线 setFitView 不会被迟到的定位回调覆盖
     await centerOnCurrentLocation(mapRef, 10, 1500);
