@@ -188,14 +188,15 @@ describe('M5 规划页（DOM集成 + Mock地图）', () => {
     return { book };
   }
 
-  it('三栏渲染：天卡片、锚点行、住宿行、信息库行', async () => {
+  it('三栏渲染：天卡片、继承锚点行、无自由出发、无住宿行、信息库行', async () => {
     await freshPlanner();
     assert.has(page, '[data-page="planner"]');
     assert.includes(page.querySelector('[data-left]').textContent, 'D1');
     assert.includes(page.querySelector('[data-left]').textContent, 'D2');
-    assert.includes(page.querySelector('[data-left]').textContent, '从：自由出发');
+    assert.notIncludes(page.querySelector('[data-left]').textContent, '从：自由出发');
     assert.includes(page.querySelector('[data-left]').textContent, '从：亚朵酒店');
-    assert.includes(page.querySelector('[data-left]').textContent, '今晚住宿：亚朵酒店');
+    assert.notIncludes(page.querySelector('[data-left]').textContent, '今晚住宿');
+    assert.includes(page.querySelector('[data-left]').textContent, '🏁 终点');
     assert.eq(page.querySelectorAll('[data-day]').length, 2);
     assert.gte(page.querySelectorAll('[data-librow]').length, 5);
     // Sortable 已挂到各天容器与信息库列表
@@ -235,20 +236,11 @@ describe('M5 规划页（DOM集成 + Mock地图）', () => {
     }
   });
 
-  it('住宿选择弹窗：默认酒店靠前，选中后生效并清除条目重复', async () => {
+  it('历史数据平滑迁移：stayItemId自动移入当天末尾作为终点', async () => {
     const { book } = await freshPlanner();
-    const d2 = book.days[1];
-    page.querySelector(`[data-stayset="${d2.id}"]`).click();
-    await new Promise(r => setTimeout(r, 30));
-    const modal = document.querySelector('[data-modal]');
-    assert.ok(modal, '住宿弹窗应出现');
-    const firstBtn = modal.querySelector('[data-pickstay]');
-    // 默认列表酒店类在前
-    assert.includes(firstBtn.textContent, '亚朵酒店');
-    firstBtn.click();
-    await new Promise(r => setTimeout(r, 30));
-    assert.eq(d2.stayItemId, firstBtn.dataset.pickstay);
-    assert.includes(page.querySelector('[data-left]').textContent, '今晚住宿：亚朵酒店');
+    const d1 = book.days[0];
+    assert.eq(d1.stayItemId, null);
+    assert.eq(d1.stopItemIds[d1.stopItemIds.length - 1], 'i4');
   });
 
   it('日期选择（周一起始弹层）/ 添加一天自动延续日期 / 删除一天（确认）/ 移除条目', async () => {

@@ -32,8 +32,8 @@ export function dayLabel(book, dayId) {
 }
 
 /**
- * 当天的出发锚点（PRD 决策D5）：
- * 优先向前找最近一天的"当晚住宿"，没有则用该天最后一个条目；
+ * 当天的出发锚点：
+ * 优先向前找最近一天的终点（默认为该天最后一个条目，若历史数据有 stayItemId 亦兼容）；
  * 都没有则用整趟起点（仅从源头找得到时）。
  * 返回 {type:'item', id} | {type:'origin'} | null
  */
@@ -42,13 +42,15 @@ export function dayStartAnchor(book, dayId) {
   if (idx < 0) return null;
   for (let i = idx - 1; i >= 0; i--) {
     const d = book.days[i];
-    if (d.stayItemId) return { type: 'item', id: d.stayItemId };
-    if (d.stopItemIds.length) return { type: 'item', id: d.stopItemIds[d.stopItemIds.length - 1] };
+    const lastId = (d.stopItemIds && d.stopItemIds.length)
+      ? d.stopItemIds[d.stopItemIds.length - 1]
+      : d.stayItemId;
+    if (lastId) return { type: 'item', id: lastId };
   }
   return book.origin?.name ? { type: 'origin' } : null;
 }
 
-/** 设置当晚住宿：住宿固定为当天收尾，若同id在条目列表中则移出（避免重复） */
+/** 设置当晚住宿：兼容保留函数，历史数据或测试可用 */
 export function setStay(book, dayId, itemId) {
   const day = book.days.find(d => d.id === dayId);
   if (!day) return false;
@@ -66,13 +68,13 @@ export function clearStay(book, dayId) {
   return true;
 }
 
-/** 当天有效住宿：显式设置的住宿优先；未设置时默认最后一个地点（十三轮反馈4） */
+/** 当天有效终点/住宿：未设住宿时默认最后一个地点（最后一条为目的地） */
 export function effectiveStayId(day) {
   if (!day) return null;
-  return day.stayItemId || day.stopItemIds[day.stopItemIds.length - 1] || null;
+  return (day.stopItemIds && day.stopItemIds.length ? day.stopItemIds[day.stopItemIds.length - 1] : null) || day.stayItemId || null;
 }
 
-/** 插入条目（index=-1 追加到末尾）；与住宿相同id时拒绝 */
+/** 插入条目（index=-1 追加到末尾） */
 export function insertStop(book, dayId, itemId, index = -1) {
   const day = book.days.find(d => d.id === dayId);
   if (!day) return false;

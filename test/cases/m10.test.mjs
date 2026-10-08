@@ -179,28 +179,9 @@ describe('M10 三轮反馈回归', () => {
     document.querySelector('[data-modal]')?.remove();
     await planner.render(page);
     await wait(80);
-    page.querySelector('[data-stayset]').click();
-    await wait(30);
-    let modal = document.querySelector('[data-modal]');
-    // 无筛选时酒店优先
-    assert.includes(modal.querySelector('[data-pickstay]').textContent, '亚朵酒店');
-    // 一级分类筛选：选"美食"只剩火锅店
-    const sel = modal.querySelector('[data-staycat]');
-    sel.value = 'c_food';
-    sel.dispatchEvent(new Event('change', { bubbles: true }));
-    await wait(30);
-    let rows = [...modal.querySelectorAll('[data-pickstay]')];
-    assert.eq(rows.length, 1);
-    assert.includes(rows[0].textContent, '火锅店');
-    // 回到全部，用标签筛选"带泳池"→ 只剩如家
-    sel.value = '__all';
-    sel.dispatchEvent(new Event('change', { bubbles: true }));
-    modal.querySelector('[data-staytag="t1"]').click();
-    await wait(30);
-    rows = [...modal.querySelectorAll('[data-pickstay]')];
-    assert.eq(rows.length, 1);
-    assert.includes(rows[0].textContent, '如家酒店');
-    modal.querySelector('[data-act="cancel"]').click();
+    // 去除“今晚住宿”选项后，页面不再存在 data-stayset 按钮
+    assert.eq(page.querySelectorAll('[data-stayset]').length, 0);
+    assert.eq(page.querySelectorAll('[data-stayclear]').length, 0);
   });
 
   it('【问题8】生成页左右布局：行程全部展开/地图在右', async () => {

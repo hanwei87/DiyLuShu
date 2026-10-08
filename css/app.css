@@ -546,6 +546,7 @@ input, select, textarea { font: inherit; color: inherit; }
 .stop-row.sortable-chosen { box-shadow: var(--shadow-lg); }
 .stop-row .chips { display: flex; gap: 4px; flex-wrap: wrap; }
 .stop-row .chips .chip { font-size: 11px; padding: 0 7px; }
+.stop-row .chip.dest-chip { background: #e0f2fe; color: #0369a1; font-weight: 600; border: 1px solid #bae6fd; }
 .stay-row {
   display: flex; align-items: center; gap: 8px;
   border: 1px dashed var(--line-strong); border-radius: 8px; padding: 6px 8px; margin-bottom: 6px; font-size: 13px;

@@ -222,11 +222,12 @@ function renderDaysList(book) {
     const totalD = segs.reduce((n, s) => n + (s?.distance || 0), 0);
     const totalT = segs.reduce((n, s) => n + (s?.time || 0), 0);
     const hasTotal = segs.some(Boolean) && totalD > 0;
-    // 宿：城市-住宿位置（城市解析失败时逐站回退；无城市只显示住宿名）
-    const city = stay ? dayCity(book, d.id) : '';
-    const stayText = stay
-      ? `${city ? city + '-' : ''}${escapeHtml(stay.name)}`
-      : '未设置';
+    // 终点：城市-终点位置（城市解析失败时逐站回退；无城市只显示终点名）
+    const dest = effStay ? findItem(effStay) : null;
+    const city = dest ? dayCity(book, d.id) : '';
+    const destText = dest
+      ? `${city ? city + '-' : ''}${escapeHtml(dest.name)}`
+      : '未安排地点';
     let chainHtml = '<div style="color:var(--sub);padding:2px 0;">正在计算路线…</div>';
     if (blocks) {
       if (!blocks.length) chainHtml = '<div style="color:var(--sub);padding:2px 0;">这一天没有安排地点</div>';
@@ -270,7 +271,7 @@ function renderDaysList(book) {
               ? `<button class="btn sm primary" data-mobnav="${i}" title="点击直接调起高德导航">📱 手机导航</button>`
               : ''}
           </span>
-          <span class="day-meta-bottom">宿：${stayText}</span>
+          <span class="day-meta-bottom">终点：${destText}</span>
         </span>
       </summary>
       <div class="chain">${chainHtml}</div>
@@ -319,9 +320,8 @@ async function computeAndDraw(book, runId = ++genRun) {
         if (!b.loc) return;
         n += 1;
         let suffix = '';
-        if (b.kind === 'dest') suffix = ' 🏁';
+        if (b.kind === 'dest' || b.kind === 'stay') suffix = ' 🏁';
         else if (b.isStart || b.kind === 'origin') suffix = ' 🚩';
-        else if (b.kind === 'stay') suffix = ' 🏨';
         const tagText = b.tags.length ? ' ' + b.tags.map(t => '#' + t).join(' ') : '';
         const hover = [b.name.replace(/^🚩\s*/, ''), b.address, b.tags.map(t => '#' + t).join(' ')].filter(Boolean).join('｜');
         overlays.push(new AMap.Marker({

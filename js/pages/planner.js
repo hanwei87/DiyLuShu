@@ -3,7 +3,7 @@
 import { state, currentBook, findItem } from '../core/state.js';
 import { renameBook, touchBook } from '../core/bookOps.js';
 import {
-  addDay, removeDayById, dayLabel, dayStartAnchor, setStay, clearStay,
+  addDay, removeDayById, dayLabel, dayStartAnchor,
   insertStop, moveStop, removeStopById,
 } from '../core/plannerOps.js';
 import { optimizeOrder } from '../core/optimizer.js';
@@ -27,9 +27,9 @@ function book() { return currentBook(); }
 
 function anchorText(b, dayId) {
   const a = dayStartAnchor(b, dayId);
-  if (!a) return '自由出发'; // 起终点概念已全局移除：第一天无锚点时自由出发
-  if (a.type === 'origin') return `${b.origin.name}（整趟起点）`;
-  return findItem(a.id)?.name || '（条目已删除）';
+  if (!a) return null; // 第一天或无前序锚点时不展示提示词（删除无意义的“自由出发”）
+  if (a.type === 'origin') return b.origin?.name ? `${b.origin.name}（整趟起点）` : null;
+  return findItem(a.id)?.name || null;
 }
 
 function renderLeft() {
@@ -41,12 +41,14 @@ function renderLeft() {
       <input class="inline-input nm" data-bookname value="${escapeHtml(b.name)}" title="点击修改路书名">
     </div>
     ${b.days.map((d, i) => {
-      // 检查住宿有效性，如已在信息库中被删除则自动清理
-      if (d.stayItemId && !findItem(d.stayItemId)) {
+      // 自动平滑迁移历史数据：若旧数据包含 stayItemId，自动追加至当天地点列表末尾作为目的地，不再单独保留住宿字段
+      if (d.stayItemId) {
+        if (!d.stopItemIds.includes(d.stayItemId)) {
+          d.stopItemIds.push(d.stayItemId);
+        }
         d.stayItemId = null;
         touchBook(b);
       }
-      const stay = d.stayItemId ? findItem(d.stayItemId) : null;
 
       // 提取该天在信息库中真实存在的有效地点，并自动过滤/清理已删除的脏引用
       const validStops = [];
@@ -61,6 +63,8 @@ function renderLeft() {
         touchBook(b);
       }
 
+      const aText = anchorText(b, d.id);
+
       return `<div class="card day-card ${d.id === activeId ? 'active' : ''}" data-day="${d.id}">
         <div class="day-head">
           <span class="dlabel">D${i + 1}</span>
@@ -69,23 +73,20 @@ function renderLeft() {
           <button class="btn sm ghost" data-opt="${d.id}" title="按就近原则重排中间地点">⚡优化顺序</button>
           <span class="icon-btn sm" data-daydel="${d.id}" title="删除这一天">🗑</span>
         </div>
-        <div class="anchor-row">🚩 从：${escapeHtml(anchorText(b, d.id))}</div>
+        ${aText ? `<div class="anchor-row">🚩 从：${escapeHtml(aText)}</div>` : ''}
         <div data-stops="${d.id}">
           ${validStops.length ? validStops.map(({ id, it }, n) => {
             const cat = state.library.categories.find(c => c.id === it.categoryId);
+            const isDest = n === validStops.length - 1 && (validStops.length > 1 || Boolean(aText));
             return `<div class="stop-row" data-stoprow data-item-id="${id}" tabindex="0">
               <span class="drag">≡</span>
               <span class="idx">${n + 1}</span>
               <span class="nm link" data-locate="${id}">${escapeHtml(it.name)}</span>
               <span class="chip">${escapeHtml(cat?.name || '未分类')}</span>
+              ${isDest ? '<span class="chip dest-chip" style="background:#e0f2fe;color:#0369a1;font-weight:600;border:1px solid #bae6fd;" title="当天行程终点">🏁 终点</span>' : ''}
               <span class="icon-btn sm" data-stopdel="${d.id}|${id}" title="从行程移除">✕</span>
             </div>`;
           }).join('') : '<div style="color:var(--sub);font-size:12px;padding:4px 8px;">从右侧拖入或点 ⊕ 添加地点</div>'}
-        </div>
-        <div class="stay-row ${stay ? 'set' : ''}">
-          🏨 今晚住宿：<strong>${stay ? escapeHtml(stay.name) : '未设置'}</strong>
-          <button class="btn sm" data-stayset="${d.id}">${stay ? '更换' : '设置'}</button>
-          ${stay ? `<button class="btn sm ghost" data-stayclear="${d.id}">清除</button>` : ''}
         </div>
       </div>`;
     }).join('')}
@@ -112,9 +113,7 @@ function bindSortables(left) {
       onAdd: evt => {
         const dayId = evt.to.dataset.stops;
         const itemId = evt.item.dataset.itemId;
-        if (!insertStop(b, dayId, itemId, evt.newIndex)) {
-          toast('该地点已是当晚住宿，不能重复加入', 'error');
-        }
+        insertStop(b, dayId, itemId, evt.newIndex);
         renderLeft();
         renderCalloutRows();
       },
@@ -418,79 +417,6 @@ async function redrawRoute() {
   polylines = lines;
 }
 
-/* ---------------- 住宿选择弹窗（支持大类/标签/关键词筛选） ---------------- */
-
-function stayModal(dayId) {
-  const b = book();
-  const hotelCatIds = state.library.categories.filter(c => c.name.includes('酒店') || c.name.includes('住宿')).map(c => c.id);
-  const f = { categoryId: '__all', tagIds: [], kw: '' };
-  const { mask, body, close } = openModal({ title: '选择今晚住宿', wide: true, content: `
-    <div class="lib-toolbar">
-      <select data-staycat style="border:1px solid var(--line-strong);border-radius:8px;padding:5px 8px;">
-        <option value="__all">全部分类</option>
-        ${state.library.categories.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('')}
-      </select>
-      <input type="search" data-staykw placeholder="搜索全部信息库条目…" style="flex:1;min-width:140px;">
-    </div>
-    <div class="lib-toolbar" style="margin-top:6px;">
-      <span style="color:var(--sub);font-size:12px;">标签:</span>
-      <span data-staytags style="display:flex;gap:5px;flex-wrap:wrap;">
-        ${state.library.tags.map(t => `<span class="chip" data-staytag="${t.id}">#${escapeHtml(t.name)}</span>`).join('')}
-      </span>
-    </div>
-    <div data-staylist style="max-height:320px;overflow:auto;margin-top:10px;display:flex;flex-direction:column;gap:6px;"></div>`,
-  });
-  mask.querySelector('[data-act="ok"]').hidden = true;
-  mask.querySelector('[data-act="cancel"]').textContent = '取消';
-
-  function list() {
-    let items = state.library.items.slice();
-    if (f.categoryId !== '__all') items = items.filter(i => i.categoryId === f.categoryId);
-    if (f.tagIds.length) items = items.filter(i => f.tagIds.some(t => i.tagIds.includes(t)));
-    if (f.kw) items = items.filter(i => i.name.includes(f.kw));
-    const noFilter = f.categoryId === '__all' && !f.tagIds.length && !f.kw;
-    if (noFilter) {
-      items.sort((x, y) => {
-        const hx = hotelCatIds.includes(x.categoryId) ? 0 : 1;
-        const hy = hotelCatIds.includes(y.categoryId) ? 0 : 1;
-        return hx - hy;
-      });
-    }
-    body.querySelector('[data-staylist]').innerHTML = items.map(it => `
-      <button class="btn" data-pickstay="${it.id}" style="justify-content:space-between;">
-        <span>${escapeHtml(it.name)}</span>
-        <span style="color:var(--sub);font-size:12px;">${escapeHtml(state.library.categories.find(c => c.id === it.categoryId)?.name || '未分类')}${it.tagIds.map(tid => {
-          const t = state.library.tags.find(x => x.id === tid);
-          return t ? ` #${escapeHtml(t.name)}` : '';
-        }).join('')}</span>
-      </button>`).join('') || '<p style="color:var(--sub);">没有匹配的条目</p>';
-  }
-  function renderTags() {
-    body.querySelector('[data-staytags]').innerHTML = state.library.tags.map(t =>
-      `<span class="chip ${f.tagIds.includes(t.id) ? 'active' : ''}" data-staytag="${t.id}">#${escapeHtml(t.name)}</span>`).join('');
-  }
-  list();
-  body.querySelector('[data-staykw]').addEventListener('input', e => { f.kw = e.target.value.trim(); list(); });
-  body.querySelector('[data-staycat]').addEventListener('change', e => { f.categoryId = e.target.value; list(); });
-  body.querySelector('[data-staytags]').addEventListener('click', e => {
-    const chip = e.target.closest('[data-staytag]');
-    if (!chip) return;
-    const id = chip.dataset.staytag;
-    f.tagIds = f.tagIds.includes(id) ? f.tagIds.filter(x => x !== id) : [...f.tagIds, id];
-    renderTags();
-    list();
-  });
-  body.querySelector('[data-staylist]').addEventListener('click', e => {
-    const btn = e.target.closest('[data-pickstay]');
-    if (!btn) return;
-    setStay(b, dayId, btn.dataset.pickstay);
-    toast('今晚住宿已设置，将作为明天出发地');
-    close();
-    renderLeft();
-    redrawRoute();
-  });
-}
-
 /* ---------------- 优化当天顺序 ---------------- */
 
 async function optimizeDay(dayId) {
@@ -509,18 +435,18 @@ async function optimizeDay(dayId) {
   let start = null;
   if (anchor?.type === 'item') start = strToLoc(findItem(anchor.id)?.location);
   else if (anchor?.type === 'origin') {
-    start = b.origin?.location ? strToLoc(b.origin.location) : await geocode(b.origin?.name);
+    start = b.origin?.location ? strToLoc(b.origin.location) : await geocodeName(b.origin?.name);
   }
-  let end = day.stayItemId ? strToLoc(findItem(day.stayItemId)?.location) : null;
-  if (!end) {
-    const isLast = b.days[b.days.length - 1]?.id === dayId;
-    if (isLast && b.destination?.name) {
-      end = b.destination?.location ? strToLoc(b.destination.location) : await geocode(b.destination.name);
-    }
-  }
-  const newOrder = optimizeOrder(withLoc, start, end);
+
+  // 默认当天最后一条为目的地：固定最后一条在末尾作为 end，只优化中间途经点
+  const destStop = withLoc[withLoc.length - 1];
+  const midStops = withLoc.slice(0, -1);
+  const end = destStop.location;
+
+  const newMidOrder = optimizeOrder(midStops, start, end);
+  const newOrder = [...newMidOrder, destStop.id];
   day.stopItemIds = [...newOrder, ...withoutLoc];
-  toast('已优化顺序，可继续手动微调');
+  toast('已优化顺序，终点保持在末尾，可继续微调');
   renderLeft();
   redrawRoute();
 }
@@ -611,10 +537,6 @@ export async function render(container) {
         redrawRoute();
         return;
       }
-      const stayset = e.target.closest('[data-stayset]');
-      if (stayset) { stayModal(stayset.dataset.stayset); return; }
-      const stayclear = e.target.closest('[data-stayclear]');
-      if (stayclear) { clearStay(b, stayclear.dataset.stayclear); renderLeft(); renderCalloutRows(); redrawRoute(); return; }
       const plus = e.target.closest('[data-addplus]');
       if (plus) {
         if (!el._activeDayId) { toast('请先在左侧点击选中某一天', 'error'); return; }
@@ -646,7 +568,7 @@ export async function render(container) {
         return;
       }
       const dayCard = e.target.closest('[data-day]');
-      if (dayCard && !e.target.closest('input,select,button,[data-locate],[data-stopdel],[data-opt],[data-daydel],[data-stayset],[data-stayclear],[data-addplus],[data-datebtn]')) {
+      if (dayCard && !e.target.closest('input,select,button,[data-locate],[data-stopdel],[data-opt],[data-daydel],[data-addplus],[data-datebtn]')) {
         el._activeDayId = dayCard.dataset.day;
         renderLeft();
         redrawRoute();
